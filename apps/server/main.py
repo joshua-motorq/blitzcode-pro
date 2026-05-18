@@ -1,10 +1,28 @@
 import asyncio
 import contextlib
+import json
 import logging
 import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Optional
+
+# Load provider config EARLY before SDK imports (SDK reads env at import time)
+_agent_webkit_root = Path.home() / ".agent-webkit"
+_blitz_pro_root = Path(
+    os.environ.get("BLITZCODE_PRO_ROOT", str(_agent_webkit_root / "blitzcode-pro"))
+)
+_provider_config_path = _blitz_pro_root / "provider-config.json"
+if _provider_config_path.exists() and not os.environ.get("ANTHROPIC_API_KEY"):
+    try:
+        with open(_provider_config_path) as f:
+            config = json.load(f)
+            if config.get("api_key"):
+                os.environ["ANTHROPIC_API_KEY"] = config["api_key"]
+            if config.get("base_url"):
+                os.environ["ANTHROPIC_API_BASE"] = config["base_url"]
+    except (json.JSONDecodeError, OSError, KeyError):
+        pass
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
